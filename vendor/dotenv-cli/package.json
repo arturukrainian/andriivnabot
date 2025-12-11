@@ -1,0 +1,11 @@
+{
+  "name": "dotenv-cli",
+  "version": "7.3.0",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "dotenv": "./index.js"
+  },
+  "dependencies": {
+  }
+}

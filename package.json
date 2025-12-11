@@ -1,0 +1,63 @@
+{
+  "name": "english-learning-telegram-bot",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "prisma": {
+    "seed": "node --loader ts-node/esm prisma/seed.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/ingest/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/ingest/server.js",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "check": "npm run lint && npm run build",
+    "verify:stage": "npm run verify:stage3",
+    "verify:stage3": "node scripts/verify-stage3.mjs",
+    "verify:stage4": "PUBSUB_DRIVER=memory TELEGRAM_MOCK=1 node scripts/verify-stage4-e2e.mjs",
+    "verify:redis": "node scripts/verify-redis.mjs",
+    "verify:stage6": "node scripts/verify-stage6.mjs",
+    "prisma:migrate": "prisma migrate dev --name stage6_lessons_progress",
+    "prisma:generate": "prisma generate",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "stage6:db": "dotenv -e .env -- npx prisma migrate deploy && dotenv -e .env -- npx prisma db seed",
+    "dev:ingest": "tsx --watch src/ingest/server.ts",
+    "dev:worker": "tsx --watch src/workers/telegram-updates/index.ts",
+    "dev:all": "concurrently -k \"npm:dev:ingest\" \"npm:dev:worker\""
+  },
+  "dependencies": {
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/under-pressure": "^8.5.2",
+    "@google-cloud/pubsub": "^5.2.0",
+    "@prisma/client": "^5.22.0",
+    "@upstash/redis": "^1.34.3",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "fastify-plugin": "^4.5.1",
+    "grammy": "^1.25.1",
+    "ioredis": "^5.4.1",
+    "pino": "^9.6.0",
+    "pino-pretty": "^11.3.0",
+    "posthog-node": "^4.7.2",
+    "undici": "^6.20.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.26",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "3.6.0",
+    "eslint-plugin-import": "^2.29.1",
+    "prettier": "^3.3.2",
+    "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
+    "dotenv-cli": "file:vendor/dotenv-cli",
+    "tsx": "^4.15.7",
+    "typescript": "^5.9.3"
+  }
+}

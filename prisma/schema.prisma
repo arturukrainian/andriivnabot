@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  telegramId  BigInt    @unique
+  username    String?
+  fullName    String?
+  level       Int       @default(1)
+  xp          Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  progress    UserProgress[]
+
+  @@index([username])
+  @@index([createdAt])
+}
+
+model Lesson {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  title       String
+  description String?
+  contentUrl  String?
+  level       Int       @default(1)
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  progress    UserProgress[]
+
+  @@index([isPublished])
+  @@index([level])
+}
+
+model UserProgress {
+  id          Int            @id @default(autoincrement())
+  lessonId    Int
+  userId      Int
+  status      ProgressStatus @default(NOT_STARTED)
+  score       Int            @default(0)
+  startedAt   DateTime       @default(now())
+  completedAt DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId, status])
+  @@index([lessonId, status])
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  STARTED
+  COMPLETED
+}

@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Verify Stage 1",
+      "type": "shell",
+      "command": "node scripts/verify-stage1.mjs",
+      "problemMatcher": []
+    }
+  ]
+}
