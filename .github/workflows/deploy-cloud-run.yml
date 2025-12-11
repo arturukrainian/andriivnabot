@@ -9,8 +9,8 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.CLOUD_RUN_REGION }}
   SERVICE_NAME: ${{ secrets.CLOUD_RUN_SERVICE }}
-  # Artifact Registry image URL
-  IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/andriivnabot/andriivnabot:${{ github.sha }}
+  REPO: andriivnabot
+  IMAGE: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/andriivnabot/andriivnabot:${{ github.sha }}
   WEBHOOK_BASE_URL: ${{ secrets.WEBHOOK_BASE_URL }}
 
 jobs:
@@ -39,20 +39,25 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Якщо ключ збережено у секреті GCP_SA_KEY_B64 (base64)
-      - name: Decode GCP key
-        id: decode
-        env:
-          GCP_SA_KEY_B64: ${{ secrets.GCP_SA_KEY_B64 }}
+      # Якщо ви зберігаєте ключ у base64 (GCP_SA_KEY_B64) — цей крок розкодує його.
+      # Якщо у вас секрет з чистим JSON (GCP_SA_KEY) — залиште цей блок, він однаково спрацює.
+      - name: Prepare service account JSON
+        id: sa
+        shell: bash
         run: |
-          echo "$GCP_SA_KEY_B64" | base64 -d > $RUNNER_TEMP/key.json
-          jq -c . $RUNNER_TEMP/key.json > $RUNNER_TEMP/key.min.json
-          echo "json=$(cat $RUNNER_TEMP/key.min.json)" >> $GITHUB_OUTPUT
+          if [ -n "${{ secrets.GCP_SA_KEY_B64 }}" ]; then
+            echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > "$RUNNER_TEMP/key.json"
+          else
+            echo '${{ secrets.GCP_SA_KEY }}' > "$RUNNER_TEMP/key.json"
+          fi
+          # Мінімізуємо JSON, щоб уникнути зайвих перенесень/пробілів
+          cat "$RUNNER_TEMP/key.json" | jq -c . > "$RUNNER_TEMP/key.min.json"
+          echo "json=$(cat "$RUNNER_TEMP/key.min.json")" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ steps.decode.outputs.json }}
+          credentials_json: ${{ steps.sa.outputs.json }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
@@ -60,7 +65,7 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 
       - name: Build and push image
         env:
@@ -84,5 +89,5 @@ jobs:
             --allow-unauthenticated
 
       - name: Smoke test webhook
-        if: env.WEBHOOK_BASE_URL != ''
+        if: ${{ env.WEBHOOK_BASE_URL != '' }}
         run: curl --fail --silent --show-error "$WEBHOOK_BASE_URL/health"
