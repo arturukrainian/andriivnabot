@@ -5,10 +5,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-concurrency:
-  group: cloud-run-deploy-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.CLOUD_RUN_REGION }}
@@ -42,38 +38,45 @@ jobs:
       - name: Build
         run: npm run build
 
-      # === AUTH VARIANT SELECTION ===
-      # Спочатку пробуємо base64, якщо ні — тоді JSON
-      - name: Check which key to use
-        id: keycheck
+      # ---- Decode/normalize SA key (handles raw JSON or base64) ----
+      - name: Prepare GCP SA key JSON
+        id: key
+        shell: bash
         run: |
-          if [ -n "${{ secrets.GCP_SA_KEY_B64 }}" ]; then
-            echo "use_b64=true" >> $GITHUB_ENV
-          else
-            echo "use_b64=false" >> $GITHUB_ENV
+          RAW="${{ secrets.GCP_SA_KEY }}"
+          if [[ -z "$RAW" ]]; then
+            echo "GCP_SA_KEY secret is empty" >&2
+            exit 1
           fi
 
-      - name: Decode SA key (base64) -> file
-        if: env.use_b64 == 'true'
-        run: |
-          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > "$RUNNER_TEMP/key.json"
+          # Спроба розпізнати як JSON
+          if echo "$RAW" | jq -e . >/dev/null 2>&1; then
+            JSON="$RAW"
+          else
+            # Мабуть base64 -> декодуємо
+            JSON="$(echo "$RAW" | base64 -d 2>/dev/null || true)"
+            if ! echo "$JSON" | jq -e . >/dev/null 2>&1; then
+              echo "GCP_SA_KEY is neither valid JSON nor base64-encoded JSON" >&2
+              exit 1
+            fi
+          fi
 
-      - name: Authenticate to Google Cloud (file)
-        if: env.use_b64 == 'true'
+          # Виводимо як мультилайн-оутпут
+          {
+            echo 'json<<EOF'
+            echo "$JSON"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_file_path: ${{ runner.temp }}/key.json
-
-      - name: Authenticate to Google Cloud (JSON)
-        if: env.use_b64 == 'false'
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ steps.key.outputs.json }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Configure Docker for gcr.io
         run: gcloud auth configure-docker gcr.io --quiet
