@@ -2,7 +2,7 @@ name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -29,7 +29,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install deps
+      - name: Install dependencies
         run: npm ci
 
       - name: Lint
@@ -38,31 +38,32 @@ jobs:
       - name: Build
         run: npm run build
 
-      # ✅ Аутентифікація в GCP. ЗАПИШИ у GitHub Secret "GCP_SA_KEY"
-      # ПОВНИЙ JSON з key.json (не base64, не обрізаний).
-      - name: Auth to Google Cloud
+      - name: Decode GCP key
+        id: decode
+        env:
+          GCP_SA_KEY_B64: ${{ secrets.GCP_SA_KEY_B64 }}
+        run: |
+          echo "$GCP_SA_KEY_B64" | base64 -d > $RUNNER_TEMP/key.json
+          cat $RUNNER_TEMP/key.json | jq -c . > $RUNNER_TEMP/key.min.json
+          echo "json=$(cat $RUNNER_TEMP/key.min.json)" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ steps.decode.outputs.json }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ env.PROJECT_ID }}
 
-      - name: Show gcloud version (debug)
-        run: |
-          which gcloud || true
-          gcloud --version
-
-      - name: Configure Docker for gcr.io
-        run: gcloud auth configure-docker --quiet
+      - name: Configure Docker
+        run: gcloud auth configure-docker gcr.io --quiet
 
       - name: Build and push image
         env:
           IMAGE: ${{ env.IMAGE }}
         run: |
-          docker --version
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
@@ -81,5 +82,5 @@ jobs:
             --allow-unauthenticated
 
       - name: Smoke test webhook
-        if: ${{ env.WEBHOOK_BASE_URL != '' }}
+        if: env.WEBHOOK_BASE_URL != ''
         run: curl --fail --silent --show-error "$WEBHOOK_BASE_URL/health"
