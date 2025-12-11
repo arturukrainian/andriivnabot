@@ -26,8 +26,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -44,22 +42,30 @@ jobs:
       - name: Build
         run: npm run build
 
-      # === АВТЕНТИФІКАЦІЯ ДО GCP ===
-      # Варіант 1: якщо є base64-ключ у секреті GCP_SA_KEY_B64
+      # === AUTH VARIANT SELECTION ===
+      # Спочатку пробуємо base64, якщо ні — тоді JSON
+      - name: Check which key to use
+        id: keycheck
+        run: |
+          if [ -n "${{ secrets.GCP_SA_KEY_B64 }}" ]; then
+            echo "use_b64=true" >> $GITHUB_ENV
+          else
+            echo "use_b64=false" >> $GITHUB_ENV
+          fi
+
       - name: Decode SA key (base64) -> file
-        if: ${{ secrets.GCP_SA_KEY_B64 != '' }}
+        if: env.use_b64 == 'true'
         run: |
           echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > "$RUNNER_TEMP/key.json"
 
-      - name: Auth (via credentials file)
-        if: ${{ secrets.GCP_SA_KEY_B64 != '' }}
+      - name: Authenticate to Google Cloud (file)
+        if: env.use_b64 == 'true'
         uses: google-github-actions/auth@v2
         with:
           credentials_file_path: ${{ runner.temp }}/key.json
 
-      # Варіант 2: «чистий» JSON у GCP_SA_KEY
-      - name: Auth (via inline JSON)
-        if: ${{ secrets.GCP_SA_KEY_B64 == '' }}
+      - name: Authenticate to Google Cloud (JSON)
+        if: env.use_b64 == 'false'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
