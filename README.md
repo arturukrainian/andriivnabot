@@ -1,6 +1,5 @@
 README.md
-
-# 🧠 English Learning Telegram Bot
+# 🧠 English Learning Telegram Bot by ANDRIIVNA
 
 ## 💡 Опис
 
