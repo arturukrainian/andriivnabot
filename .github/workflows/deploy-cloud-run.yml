@@ -29,62 +29,40 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
+      - name: Install deps
         run: npm ci
 
-      - name: Run lint
+      - name: Lint
         run: npm run lint
 
       - name: Build
         run: npm run build
 
-      # ---- Decode/normalize SA key (handles raw JSON or base64) ----
-      - name: Prepare GCP SA key JSON
-        id: key
-        shell: bash
-        run: |
-          RAW="${{ secrets.GCP_SA_KEY }}"
-          if [[ -z "$RAW" ]]; then
-            echo "GCP_SA_KEY secret is empty" >&2
-            exit 1
-          fi
-
-          # Спроба розпізнати як JSON
-          if echo "$RAW" | jq -e . >/dev/null 2>&1; then
-            JSON="$RAW"
-          else
-            # Мабуть base64 -> декодуємо
-            JSON="$(echo "$RAW" | base64 -d 2>/dev/null || true)"
-            if ! echo "$JSON" | jq -e . >/dev/null 2>&1; then
-              echo "GCP_SA_KEY is neither valid JSON nor base64-encoded JSON" >&2
-              exit 1
-            fi
-          fi
-
-          # Виводимо як мультилайн-оутпут
-          {
-            echo 'json<<EOF'
-            echo "$JSON"
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Authenticate to Google Cloud
+      # ✅ Аутентифікація в GCP. ЗАПИШИ у GitHub Secret "GCP_SA_KEY"
+      # ПОВНИЙ JSON з key.json (не base64, не обрізаний).
+      - name: Auth to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ steps.key.outputs.json }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ env.PROJECT_ID }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Show gcloud version (debug)
+        run: |
+          which gcloud || true
+          gcloud --version
 
       - name: Configure Docker for gcr.io
-        run: gcloud auth configure-docker gcr.io --quiet
+        run: gcloud auth configure-docker --quiet
 
       - name: Build and push image
         env:
           IMAGE: ${{ env.IMAGE }}
         run: |
+          docker --version
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
