@@ -7,9 +7,10 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.CLOUD_RUN_REGION }}
-  SERVICE_NAME: ${{ secrets.CLOUD_RUN_SERVICE }}
-  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/andriivnabot:${{ github.sha }}
+  REGION: ${{ secrets.CLOUD_RUN_REGION }}            # напр.: europe-west1
+  SERVICE_NAME: ${{ secrets.CLOUD_RUN_SERVICE }}     # напр.: andriivnabot
+  AR_REPOSITORY: andriivnabot                        # назва репозиторію в Artifact Registry
+  IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPOSITORY }}/andriivnabot:${{ github.sha }}
   WEBHOOK_BASE_URL: ${{ secrets.WEBHOOK_BASE_URL }}
 
 jobs:
@@ -38,27 +39,35 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Decode GCP key
-        id: decode
-        env:
-          GCP_SA_KEY_B64: ${{ secrets.GCP_SA_KEY_B64 }}
+      # Підтримка двох типів секретів: GCP_SA_KEY_B64 (base64) або GCP_SA_KEY (JSON)
+      - name: Prepare service account credentials
+        id: creds
         run: |
-          echo "$GCP_SA_KEY_B64" | base64 -d > $RUNNER_TEMP/key.json
-          cat $RUNNER_TEMP/key.json | jq -c . > $RUNNER_TEMP/key.min.json
-          echo "json=$(cat $RUNNER_TEMP/key.min.json)" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          if [ -n "${{ secrets.GCP_SA_KEY_B64 }}" ]; then
+            echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 -d > "$RUNNER_TEMP/key.json"
+          elif [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+            printf '%s' "${{ secrets.GCP_SA_KEY }}" > "$RUNNER_TEMP/key.json"
+          else
+            echo "❌ Neither GCP_SA_KEY_B64 nor GCP_SA_KEY is set" >&2
+            exit 1
+          fi
+          # Мінімізуємо JSON (jq уже є у runner)
+          cat "$RUNNER_TEMP/key.json" | jq -c . > "$RUNNER_TEMP/key.min.json"
+          echo "json=$(cat "$RUNNER_TEMP/key.min.json")" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ steps.decode.outputs.json }}
+          credentials_json: ${{ steps.creds.outputs.json }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Configure Docker
-        run: gcloud auth configure-docker gcr.io --quiet
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: Build and push image
         env:
