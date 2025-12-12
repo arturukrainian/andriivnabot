@@ -29,3 +29,9 @@ prisma/dev.db-journal
 
 # IDE
 .vscode/
+
+
+*.json
+!package.json
+!tsconfig.json
+andriivnabot-*.json

@@ -19,7 +19,9 @@ const app = Fastify({
 app.register(helmet);
 app.register(underPressure);
 
-app.get('/health', async () => ({ status: 'ok', ts: Date.now() }));
+app.get('/health', (_req, reply) => {
+  reply.type('text/plain').send('ok');
+});
 
 app.get('/metrics', async (_req, reply) => {
   const lines = await getMetricsText({ memoryPubCount: getMemoryPubCount() });
