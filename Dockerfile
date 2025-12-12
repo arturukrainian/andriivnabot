@@ -2,6 +2,8 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 COPY tsconfig.json ./tsconfig.json
 COPY prisma ./prisma
@@ -13,6 +15,8 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 FROM node:20-slim
+
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \
     PORT=8080

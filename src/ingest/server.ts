@@ -16,12 +16,16 @@ const app = Fastify({
   logger,
 });
 
+app.get('/health', (_req, reply) => {
+  try {
+    reply.status(200).type('text/plain').send('ok');
+  } catch {
+    reply.status(200).type('text/plain').send('ok');
+  }
+});
+
 app.register(helmet);
 app.register(underPressure);
-
-app.get('/health', (_req, reply) => {
-  reply.type('text/plain').send('ok');
-});
 
 app.get('/metrics', async (_req, reply) => {
   const lines = await getMetricsText({ memoryPubCount: getMemoryPubCount() });

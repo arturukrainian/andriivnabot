@@ -11,7 +11,6 @@ env:
   SERVICE_NAME: ${{ secrets.CLOUD_RUN_SERVICE }}
   REPO: andriivnabot
   IMAGE: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/andriivnabot/andriivnabot:${{ github.sha }}
-  WEBHOOK_BASE_URL: ${{ secrets.WEBHOOK_BASE_URL }}
 
 jobs:
   deploy:
@@ -88,6 +87,29 @@ jobs:
             --platform managed \
             --allow-unauthenticated
 
+      - name: Resolve service URL
+        id: run-url
+        env:
+          REGION: ${{ env.REGION }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+        run: |
+          URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')
+          if [ -z "$URL" ]; then
+            echo "Failed to resolve service URL"
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
       - name: Smoke test webhook
-        if: ${{ env.WEBHOOK_BASE_URL != '' }}
-        run: curl --fail --silent --show-error "$WEBHOOK_BASE_URL/health"
+        run: |
+          URL="${{ steps.run-url.outputs.url }}/health"
+          for i in {1..10}; do
+            if curl --fail --silent --show-error "$URL"; then
+              echo "Health OK"
+              exit 0
+            fi
+            echo "Retry $i/10..."
+            sleep 5
+          done
+          echo "Healthcheck failed: $URL"
+          exit 1
