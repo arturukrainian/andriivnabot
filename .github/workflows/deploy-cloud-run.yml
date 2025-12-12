@@ -11,6 +11,12 @@ env:
   SERVICE_NAME: ${{ secrets.CLOUD_RUN_SERVICE }}
   REPO: andriivnabot
   IMAGE: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/andriivnabot/andriivnabot:${{ github.sha }}
+  TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  REDIS_URL: ${{ secrets.REDIS_URL }}
+  REDIS_TOKEN: ${{ secrets.REDIS_TOKEN }}
+  PUBSUB_DRIVER: gcp
 
 jobs:
   deploy:
@@ -79,13 +85,20 @@ jobs:
           REGION: ${{ env.REGION }}
           PROJECT_ID: ${{ env.PROJECT_ID }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ env.TELEGRAM_WEBHOOK_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ env.TELEGRAM_BOT_TOKEN }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          REDIS_URL: ${{ env.REDIS_URL }}
+          REDIS_TOKEN: ${{ env.REDIS_TOKEN }}
+          PUBSUB_DRIVER: ${{ env.PUBSUB_DRIVER }}
         run: |
           gcloud run deploy "$SERVICE_NAME" \
             --image "$IMAGE" \
             --region "$REGION" \
             --project "$PROJECT_ID" \
             --platform managed \
-            --allow-unauthenticated
+            --allow-unauthenticated \
+            --set-env-vars "NODE_ENV=production,PUBSUB_DRIVER=$PUBSUB_DRIVER,TELEGRAM_WEBHOOK_SECRET=$TELEGRAM_WEBHOOK_SECRET,TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN,DATABASE_URL=$DATABASE_URL,REDIS_URL=$REDIS_URL,REDIS_TOKEN=$REDIS_TOKEN"
 
       - name: Resolve service URL
         id: run-url
@@ -113,3 +126,15 @@ jobs:
           done
           echo "Healthcheck failed: $URL"
           exit 1
+
+      - name: Set Telegram webhook
+        if: ${{ env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_WEBHOOK_SECRET != '' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ env.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ env.TELEGRAM_WEBHOOK_SECRET }}
+        run: |
+          WEBHOOK_URL="${{ steps.run-url.outputs.url }}/webhook"
+          curl --fail --silent --show-error \
+            -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+            -H 'Content-Type: application/json' \
+            -d "{\"url\":\"$WEBHOOK_URL\",\"secret_token\":\"$TELEGRAM_WEBHOOK_SECRET\"}"

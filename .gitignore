@@ -1,37 +1,60 @@
-# Node dependencies
+# --- Node / TypeScript ---
 node_modules/
-
-# Build output
 dist/
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Logs
+coverage/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Prisma artifacts
+# --- Environment files ---
+.env
+.env.local
+.env.*.local
+*.b64
+*.key
+*.pem
+*.p12
+
+# --- Build cache / temporary files ---
+*.tsbuildinfo
+.turbo/
+.nyc_output/
+.parcel-cache/
+.cache/
+
+# --- Prisma / local DB ---
 prisma/dev.db
 prisma/dev.db-journal
+*.sqlite
+*.sqlite-journal
 
-# Temporary metrics and runtime data
+# --- Metrics, queues, PubSub mocks ---
 .metrics-*.json
 .pubsub-*.json
 .pubsub-memory.json
 .metrics-store.json
 
-# System files
+# --- macOS / system ---
 .DS_Store
+Thumbs.db
 
-# IDE
-.vscode/
+# --- IDE / Editor ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+.idea/
+*.swp
 
+# --- Google Cloud / SDK ---
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz
 
-*.json
+# --- Project-specific temporary ---
+andriivnabot-*.json
+
+# --- Keep important JSON configs ---
 !package.json
 !tsconfig.json
-andriivnabot-*.json
+!prisma/schema.prisma

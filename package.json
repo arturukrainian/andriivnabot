@@ -18,6 +18,7 @@
     "verify:stage4": "PUBSUB_DRIVER=memory TELEGRAM_MOCK=1 node scripts/verify-stage4-e2e.mjs",
     "verify:redis": "node scripts/verify-redis.mjs",
     "verify:stage6": "node scripts/verify-stage6.mjs",
+    "test:webhook": "node scripts/simulate-webhook.mjs",
     "prisma:migrate": "prisma migrate dev --name stage6_lessons_progress",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx prisma/seed.ts",

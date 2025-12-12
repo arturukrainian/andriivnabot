@@ -32,10 +32,11 @@ export async function sendMessage(
     return;
   }
 
-  const token = process.env.BOT_TOKEN;
+  const token =
+    process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN ?? process.env.TOKEN;
   const api = process.env.TELEGRAM_API || 'https://api.telegram.org';
   if (!token) {
-    logger.error('BOT_TOKEN is required to send Telegram messages');
+    logger.error('TELEGRAM_BOT_TOKEN (or BOT_TOKEN/TOKEN) is required to send Telegram messages');
     return;
   }
 

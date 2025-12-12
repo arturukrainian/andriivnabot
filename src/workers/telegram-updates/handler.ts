@@ -24,6 +24,7 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
   const command = getCommand(message.text);
   const username = typeof message.chat.username === 'string' ? message.chat.username : undefined;
   await ensureUser(chatId, { username, name: username });
+  logger.info({ chatId, command }, 'handler:incoming-command');
 
   switch (command) {
     case '/start': {
@@ -54,6 +55,7 @@ async function handleMessage(message: TelegramMessage): Promise<void> {
         chatId,
         'Команда не розпізнана. Доступні: /start, /profile, /quiz, /video.',
       );
+      logger.info({ chatId, command }, 'handler:unknown-command');
     }
   }
 }
@@ -76,6 +78,7 @@ async function handleCallback(update: TelegramUpdate): Promise<void> {
   const profile = await addQuizResult(chatId, correct);
   const text = correct ? 'Правильно! +10 XP' : 'Невірно. Спробуй ще!';
   await sendMessage(chatId, `${text}\nLevel ${profile.level}, XP ${profile.xp}`);
+  logger.info({ chatId, question: qid, correct }, 'handler:quiz-answer');
   void trackEvent(
     'quiz_answer',
     { chat_id: chatId, correct, question_id: qid },
