@@ -25,8 +25,18 @@ export async function registerWebhookRoute(app: FastifyInstance): Promise<void> 
       const started = process.hrtime.bigint();
       incrementWebhookRequests();
 
-      const secretHeader = req.headers['x-telegram-bot-api-secret-token'];
-      if (!secretHeader || secretHeader !== process.env.TELEGRAM_SECRET) {
+      const expected = (process.env.TELEGRAM_WEBHOOK_SECRET ?? process.env.TELEGRAM_SECRET)?.trim();
+      const headerValue = req.headers['x-telegram-bot-api-secret-token'];
+      const got =
+        typeof headerValue === 'string'
+          ? headerValue.trim()
+          : Array.isArray(headerValue)
+            ? headerValue[0]?.trim()
+            : undefined;
+
+      req.log.info({ expected, got }, 'webhook-secret-check');
+
+      if (expected && got !== expected) {
         incrementWebhookUnauthorized();
         logger.warn({ reason: 'bad_secret' }, 'Unauthorized webhook');
         const latencyMs = computeLatencyMs(started);
