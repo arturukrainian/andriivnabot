@@ -54,6 +54,11 @@ Telegram → Cloudflare (Edge/WAF)
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 - [docs/DEVELOPMENT_PLAN.md](./docs/DEVELOPMENT_PLAN.md)
 
+## 🛠️ Local env
+
+- Завантажити змінні: `source scripts/local-env.sh`
+- Перевірити значення: `source scripts/local-env.sh && scripts/print-env.sh`
+
 ---
 
 ## 📈 Аналітика
@@ -78,4 +83,3 @@ Telegram → Cloudflare (Edge/WAF)
 - **Що перевірити:** відкрийте `GET /metrics` — там з’являться лічильники `analytics_events_total{name="<event>"}` і загальний `analytics_errors_total`. Для здорового стану `analytics_errors_total` повинен дорівнювати `0`.
 - **Які події трекаються:** `app_start`, `webhook_received`, `lesson_start`, `quiz_answer`, `update_dropped_duplicate`, `chat_lock_contention`, `ratelimit_drop`. Усі вони відправляються у PostHog та одночасно інкрементують Prometheus-метрики.
 - **Як протестувати:** запустіть `npm run verify:stage4 -- --boot` із ввімкненою аналітикою, переконайтеся у логах/`/metrics`, що `analytics_errors_total == 0`, а скрипт завершується `✅ Stage4 E2E passed`.
-
