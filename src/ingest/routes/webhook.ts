@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { fetch } from 'undici';
 import { getPubSub } from '../../utils/pubsub.js';
 import { logger } from '../../utils/logger.js';
 import { incrementWebhookRequests, incrementWebhookUnauthorized, recordWebhookLatencyMs } from '../../utils/metrics.js';
@@ -89,6 +90,26 @@ export async function registerWebhookRoute(app: FastifyInstance): Promise<void> 
 
       const topic = process.env.PUBSUB_TOPIC || 'telegram_updates';
       const pubsub = getPubSub();
+
+      const botToken =
+        process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN ?? process.env.TOKEN;
+      const incomingChatId = update.message?.chat?.id;
+      const incomingText = update.message?.text;
+      logger.info({ chat_id: incomingChatId, text: incomingText }, 'webhook-test-handler');
+      if (botToken && incomingChatId) {
+        try {
+          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: incomingChatId,
+              text: `⚽ Привіт! Я бот футболістики. Ви написали: ${incomingText ?? ''}`,
+            }),
+          });
+        } catch (err) {
+          logger.warn({ err }, 'webhook test reply failed');
+        }
+      }
 
       Promise.resolve()
         .then(() =>
